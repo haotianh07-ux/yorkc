@@ -1,30 +1,28 @@
-// ==========================================================================
+// ==========================
 // DOM
-// ==========================================================================
+// ==========================
 const dialogueText = document.getElementById("dialogueText");
 const speakerTag = document.getElementById("speakerTag");
 const choiceContainer = document.getElementById("choiceContainer");
 
-// ==========================================================================
-// HUGGING FACE API KEY
-// ==========================================================================
+// ==========================
+// HUGGING FACE CONFIG
+// ==========================
 const API_KEY = "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";
-
-// Model (you can change later)
 const MODEL = "mistralai/Mistral-7B-Instruct-v0.2";
 
-// ==========================================================================
+// ==========================
 // START GAME
-// ==========================================================================
+// ==========================
 function initGameFlow() {
     choiceContainer.innerHTML = "";
-    processGameAction("開學第一天，櫻花校園走廊，與青梅竹馬相遇，開始校園戀愛劇情並生成三個選項。");
+    processGameAction("開學第一天，櫻花飄落的校園走廊，與青梅竹馬相遇。生成劇情與3個選項。");
 }
 window.initGameFlow = initGameFlow;
 
-// ==========================================================================
-// UI CLEAN
-// ==========================================================================
+// ==========================
+// UI CLEANER
+// ==========================
 function updateDialogueUI(text) {
     let clean = text;
 
@@ -40,16 +38,16 @@ function updateDialogueUI(text) {
     dialogueText.innerText = clean.trim();
 }
 
-// ==========================================================================
+// ==========================
 // CHOICE PARSER
-// ==========================================================================
+// ==========================
 function parsingChoiceOptions(text) {
     choiceContainer.innerHTML = "";
 
     const lines = text.split("\n");
     let count = 0;
 
-    lines.forEach(line => {
+    for (const line of lines) {
         const t = line.trim();
 
         if (/^[1-3]\./.test(t) && count < 3) {
@@ -68,7 +66,7 @@ function parsingChoiceOptions(text) {
 
             choiceContainer.appendChild(btn);
         }
-    });
+    }
 
     if (count === 0) {
         const btn = document.createElement("div");
@@ -79,24 +77,26 @@ function parsingChoiceOptions(text) {
     }
 }
 
-// ==========================================================================
-// HUGGING FACE API CALL
-// ==========================================================================
+// ==========================
+// HUGGING FACE CALL (FIXED)
+// ==========================
 async function processGameAction(input) {
     speakerTag.innerText = "AI 思考中...";
     dialogueText.innerText = "生成劇情中...";
     choiceContainer.innerHTML = "";
 
-    const systemPrompt = `
+    const prompt = `
 你是一個校園戀愛Visual Novel引擎。
 
 規則：
-- 描述劇情（有畫面感、簡短）
-- 生成3個選項
-- 最後三行必須是：
+1. 描述短劇情
+2. 必須提供3個選項
+3. 最後3行格式必須是：
 1. xxx
 2. xxx
 3. xxx
+
+玩家輸入：${input}
 `;
 
     try {
@@ -109,9 +109,9 @@ async function processGameAction(input) {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    inputs: systemPrompt + "\n\n玩家輸入：" + input,
+                    inputs: prompt,
                     parameters: {
-                        max_new_tokens: 400,
+                        max_new_tokens: 300,
                         temperature: 0.9,
                         return_full_text: false
                     }
@@ -120,25 +120,36 @@ async function processGameAction(input) {
         );
 
         const data = await res.json();
-        console.log("HF:", data);
+        console.log("HF RAW:", data);
 
-        // Hugging Face sometimes returns array or error object
-        let text =
-            data?.[0]?.generated_text ||
-            data?.generated_text ||
-            data?.error;
+        // ==========================
+        // ERROR HANDLING FIX
+        // ==========================
+        if (data.error) {
+            throw new Error(data.error);
+        }
 
-        if (!text) throw new Error("No response from Hugging Face");
+        let text = "";
+
+        if (Array.isArray(data)) {
+            text = data[0]?.generated_text;
+        } else {
+            text = data.generated_text;
+        }
+
+        if (!text) {
+            throw new Error("Empty response from model");
+        }
 
         updateDialogueUI(text);
         parsingChoiceOptions(text);
 
     } catch (err) {
-        console.error(err);
+        console.error("ERROR:", err);
 
-        speakerTag.innerText = "錯誤";
+        speakerTag.innerText = "系統錯誤";
         dialogueText.innerText =
-            "連線失敗：\n- Token錯\n- 模型載入中\n- HF限制";
+            "AI 連線失敗：\n- 模型載入中（常見）\n- Token錯誤\n- HF限制";
 
         choiceContainer.innerHTML = "";
 
