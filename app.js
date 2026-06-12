@@ -6,21 +6,24 @@ const speakerTag = document.getElementById("speakerTag");
 const choiceContainer = document.getElementById("choiceContainer");
 
 // ==========================================================================
-// GROQ API KEY (PUT YOUR KEY HERE)
+// HUGGING FACE API KEY
 // ==========================================================================
-const API_KEY = "PUT_YOUR_GROQ_API_KEY_HERE";
+const API_KEY = "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";
+
+// Model (you can change later)
+const MODEL = "mistralai/Mistral-7B-Instruct-v0.2";
 
 // ==========================================================================
 // START GAME
 // ==========================================================================
 function initGameFlow() {
     choiceContainer.innerHTML = "";
-    processGameAction("開學第一天，櫻花飄落的校園走廊，與青梅竹馬相遇，開始劇情並生成三個選項。");
+    processGameAction("開學第一天，櫻花校園走廊，與青梅竹馬相遇，開始校園戀愛劇情並生成三個選項。");
 }
 window.initGameFlow = initGameFlow;
 
 // ==========================================================================
-// UI CLEANER
+// UI CLEAN
 // ==========================================================================
 function updateDialogueUI(text) {
     let clean = text;
@@ -77,7 +80,7 @@ function parsingChoiceOptions(text) {
 }
 
 // ==========================================================================
-// GROQ API CALL
+// HUGGING FACE API CALL
 // ==========================================================================
 async function processGameAction(input) {
     speakerTag.innerText = "AI 思考中...";
@@ -88,8 +91,8 @@ async function processGameAction(input) {
 你是一個校園戀愛Visual Novel引擎。
 
 規則：
-- 描述劇情（有畫面感、短）
-- 產生3個選項
+- 描述劇情（有畫面感、簡短）
+- 生成3個選項
 - 最後三行必須是：
 1. xxx
 2. xxx
@@ -97,39 +100,35 @@ async function processGameAction(input) {
 `;
 
     try {
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${API_KEY}`
-            },
-            body: JSON.stringify({
-                model: "llama-3.1-8b-instant",
-                messages: [
-                    {
-                        role: "system",
-                        content: systemPrompt
-                    },
-                    {
-                        role: "user",
-                        content: input
+        const res = await fetch(
+            `https://api-inference.huggingface.co/models/${MODEL}`,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    inputs: systemPrompt + "\n\n玩家輸入：" + input,
+                    parameters: {
+                        max_new_tokens: 400,
+                        temperature: 0.9,
+                        return_full_text: false
                     }
-                ],
-                temperature: 1,
-                max_tokens: 600
-            })
-        });
+                })
+            }
+        );
 
         const data = await res.json();
-        console.log("GROQ:", data);
+        console.log("HF:", data);
 
-        if (!res.ok) {
-            throw new Error(data.error?.message || "Groq API error");
-        }
+        // Hugging Face sometimes returns array or error object
+        let text =
+            data?.[0]?.generated_text ||
+            data?.generated_text ||
+            data?.error;
 
-        const text = data?.choices?.[0]?.message?.content;
-
-        if (!text) throw new Error("No response from Groq");
+        if (!text) throw new Error("No response from Hugging Face");
 
         updateDialogueUI(text);
         parsingChoiceOptions(text);
@@ -139,7 +138,7 @@ async function processGameAction(input) {
 
         speakerTag.innerText = "錯誤";
         dialogueText.innerText =
-            "連線失敗：\n- API key錯\n- 網路問題\n- Groq限制";
+            "連線失敗：\n- Token錯\n- 模型載入中\n- HF限制";
 
         choiceContainer.innerHTML = "";
 
