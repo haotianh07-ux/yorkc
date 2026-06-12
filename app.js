@@ -9,7 +9,7 @@ const choiceContainer = document.getElementById("choiceContainer");
 // PUT YOUR GEMINI KEY HERE
 // IMPORTANT: must be real Gemini API key (usually starts with "AIzaSy")
 // ==========================================================================
-const API_KEY = "PUT_YOUR_REAL_GEMINI_KEY_HERE";
+const API_KEY = "AQ.Ab8RN6IrRpcvPRS5tII0qj_FrPrSK3o-92r-LNaSPtxkJfhH5w";
 
 // ==========================================================================
 // START GAME (make sure HTML onclick works)
