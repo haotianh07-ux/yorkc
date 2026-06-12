@@ -7,7 +7,7 @@ const choiceContainer = document.getElementById("choiceContainer");
 const gameViewport = document.getElementById("gameViewport");
 
 // ==========================================================================
-// API 金鑰管理庫 (保護金鑰不外洩至 GitHub)
+// API 金鑰管理庫 (保護金鑰，只存於個人瀏覽器 localStorage)
 // ==========================================================================
 function getApiKey() {
     let apiKey = localStorage.getItem("gemini_api_key");
@@ -20,19 +20,18 @@ function getApiKey() {
     return apiKey;
 }
 
-// 清除金鑰的快捷功能（如果需要更換金鑰可以在主控台輸入此功能）
 function resetApiKey() {
     localStorage.removeItem("gemini_api_key");
     alert("API Key 已清除，請重整網頁重新輸入。");
 }
 
 // ==========================================================================
-// UI 文字排版與清洗引擎
+// UI 文字排版與清洗引擎 (過濾對話框雜音)
 // ==========================================================================
 function updateDialogueUI(rawText) {
     let cleanText = rawText;
 
-    // 1. 處理角色名字標籤（例如 "林曉婷："）
+    // 1. 處理角色名字標籤（例如 "旁白：" 或 "青梅竹馬："）
     const speakerMatch = cleanText.match(/^([^：:\n]+)[：:]/);
     if (speakerMatch) {
         speakerTag.innerText = speakerMatch[1].trim();
@@ -41,31 +40,34 @@ function updateDialogueUI(rawText) {
         speakerTag.innerText = "旁白描述";
     }
 
-    // 2. 自動過濾隱藏行首帶有選項數字的行，避免顯示在底部對話框內
+    // 2. 自動過濾隱藏行首帶有選項數字的行，避免出現在底部對話框
     cleanText = cleanText.replace(/^\s*([1-3一二三A-Ca-c\-\*•]|選項)[\.、\s\-\:\)].*$/gm, '');
 
     dialogueText.innerText = cleanText.trim();
 }
 
 // ==========================================================================
-// 3 按鈕強效解析生成引擎
+// 3 按鈕強效解析生成引擎 (將 AI 的文字選項轉為粉色膠囊按鈕)
 // ==========================================================================
 function parsingChoiceOptions(fullText) {
-    choiceContainer.innerHTML = ""; 
+    choiceContainer.innerHTML = ""; // 生成前先清空中央容器
     const optionLines = fullText.split('\n');
     let count = 0;
     
     optionLines.forEach(line => {
         const trimmedLine = line.trim();
         
+        // 精準捕捉符合 1., 2., 3. 開頭的行
         if (trimmedLine.match(/^([1-3A-Ca-c一二三]{1}[\.、\s\-\:\)]|\[選項[1-3]\])/) && count < 3) {
             count++;
             const btn = document.createElement("div");
             btn.classList.add("game-choice-btn");
             
+            // 剝離行首的數字與點號，保留純淨的動作或對話內容
             const cleanButtonText = trimmedLine.replace(/^([1-3A-Ca-c一二三]{1}[\.、\s\-\:\)]|\[選項[1-3]\])/, "").trim();
             btn.innerText = cleanButtonText;
             
+            // 點擊選項按鈕：清空畫面並將玩家決定傳遞回 AI
             btn.onclick = () => {
                 choiceContainer.innerHTML = ""; 
                 processGameAction(`【玩家選擇了以下行動】：${cleanButtonText}`);
@@ -76,26 +78,25 @@ function parsingChoiceOptions(fullText) {
 }
 
 // ==========================================================================
-// Google Gemini 原生通訊核心 (使用官方 REST Fetch 串流)
+// Google Gemini 標準通訊核心 (常規直連 Fetch 版本)
 // ==========================================================================
 async function processGameAction(actionPayloadText) {
     speakerTag.innerText = "因果演算中...";
     dialogueText.innerText = "正在推演時空分歧線，抉擇即刻呈現...";
     choiceContainer.innerHTML = "";
 
+    // 呼叫金鑰彈窗
     const apiKey = getApiKey();
     if (!apiKey) {
-        speakerTag.innerText = "系統錯誤";
-        dialogueText.innerText = "未提供 API 金鑰，無法啟動遊戲。請重整網頁並輸入有效的 Gemini API Key。";
+        speakerTag.innerText = "系統提示";
+        dialogueText.innerText = "未提供 API 金鑰，請點擊下方按鈕重新輸入以開啟遊戲。";
         createResetButton();
         return;
     }
 
-    let runningResponse = "";
-
     try {
-        // 使用 Google 官方當前穩定的 gemini-1.5-flash 模型端點進行實時串流
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${apiKey}`;
+        // 使用極為穩定的標準 generateContent 終端點
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         
         const response = await fetch(url, {
             method: 'POST',
@@ -121,59 +122,29 @@ async function processGameAction(actionPayloadText) {
             throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
         }
 
-        // 讀取 Fetch 回傳的 ReadableStream 資料流
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
+        const data = await response.json();
+        const responseText = data.candidates[0].content.parts[0].text;
 
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            
-            buffer += decoder.decode(value, { stream: true });
-            
-            // SSE (Server-Sent Events) 資料流解析處理
-            // Gemini 串流會以 [ {"beff":...}, ... ] 的 JSON 陣列塊形式傳回
-            let boundary = buffer.indexOf('\n');
-            while (boundary !== -1) {
-                let line = buffer.substring(0, boundary).trim();
-                buffer = buffer.substring(boundary + 1);
-                
-                // 移除 Gemini 串流特有的逗號與陣列中括號標記
-                if (line.startsWith(',')) line = line.substring(1).trim();
-                if (line.startsWith('[') || line.startsWith(']')) line = "";
-                
-                if (line) {
-                    try {
-                        const parsed = JSON.parse(line);
-                        const textChunk = parsed.candidates[0].content.parts[0].text;
-                        if (textChunk) {
-                            runningResponse += textChunk;
-                            updateDialogueUI(runningResponse);
-                        }
-                    } catch (e) {
-                        // 忽略尚未傳輸完整的 JSON 碎片
-                    }
-                }
-                boundary = buffer.indexOf('\n');
-            }
-        }
-
-        // 結尾補漏解析最後剩餘的 Buffer
-        if (runningResponse) {
-            updateDialogueUI(runningResponse);
-            parsingChoiceOptions(runningResponse);
+        if (responseText) {
+            // 更新底部劇情描述
+            updateDialogueUI(responseText);
+            // 在畫面中央生成 3 個行為按鈕
+            parsingChoiceOptions(responseText);
+        } else {
+            throw new Error("模型回傳文本為空");
         }
 
     } catch (error) {
-        console.error("Gemini Direct Connection Error:", error);
+        console.error("Gemini Connection Error:", error);
         speakerTag.innerText = "連線失敗";
-        dialogueText.innerText = "無法連接至 Google Gemini 伺服器。請確認您的 API Key 是否正確，或嘗試清除快取。";
+        dialogueText.innerText = "無法連接至 Google Gemini。這可能是因為金鑰輸入錯誤，或是您的網路封鎖了 Google API。";
         createResetButton();
     }
 }
 
-// 建立安全重試與清除金鑰按鈕
+// ==========================================================================
+// 錯誤安全防護：建立重試與更換金鑰按鈕
+// ==========================================================================
 function createResetButton() {
     choiceContainer.innerHTML = "";
     
@@ -197,23 +168,11 @@ function createResetButton() {
 }
 
 // ==========================================================================
-// 延時安全初始化掛鉤
+// HTML 按鈕點擊直接觸發點 (與全新 index.html 的 onclick 對接)
 // ==========================================================================
-function initGameMenu() {
-    speakerTag.innerText = "遊戲主選單";
-    dialogueText.innerText = "歡迎來到校園戀愛養成遊戲。粉色戀愛序幕已備就，請點擊上方按鈕開始啟程。";
-    
-    const fallbackStartBtn = document.getElementById("fallbackStartBtn");
-    if (fallbackStartBtn) {
-        fallbackStartBtn.onclick = () => {
-            choiceContainer.innerHTML = ""; 
-            processGameAction("【系統啟動】請拉開序幕，以極具畫面感的文筆描述開學第一天早晨的櫻花校園走廊，並引導出跟傲嬌青梅竹馬相遇的初始 3 個行動選項。");
-        };
-    }
-}
-
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initGameMenu);
-} else {
-    initGameMenu();
+function initGameFlow() {
+    // 立即移除 HTML 內建的開始按鈕
+    choiceContainer.innerHTML = ""; 
+    // 正式啟動 AI 連線與金鑰驗證
+    processGameAction("【系統啟動】請拉開序幕，以極具畫面感的文筆描述開學第一天早晨的櫻花校園走廊，並引導出跟傲嬌青梅竹馬相遇的初始 3 個行動選項。");
 }
