@@ -1,79 +1,71 @@
 // ==========================================================================
-// DOM Elements
+// DOM
 // ==========================================================================
 const dialogueText = document.getElementById("dialogueText");
 const speakerTag = document.getElementById("speakerTag");
 const choiceContainer = document.getElementById("choiceContainer");
 
 // ==========================================================================
-// API Key Management
+// PUT YOUR GEMINI KEY HERE
+// IMPORTANT: must be real Gemini API key (usually starts with "AIzaSy")
 // ==========================================================================
-function getApiKey() {
-    let apiKey = localStorage.getItem("gemini_api_key");
+const API_KEY = "PUT_YOUR_REAL_GEMINI_KEY_HERE";
 
-    if (!apiKey) {
-        apiKey = prompt("🌸 請輸入 Gemini API Key：");
-        if (apiKey) {
-            apiKey = apiKey.trim();
-            localStorage.setItem("gemini_api_key", apiKey);
-        }
-    }
-
-    return apiKey;
+// ==========================================================================
+// START GAME (make sure HTML onclick works)
+// ==========================================================================
+function initGameFlow() {
+    choiceContainer.innerHTML = "";
+    processGameAction("開學第一天，櫻花飄落的校園走廊，與青梅竹馬第一次對話。請開始劇情並給出三個選項。");
 }
 
-function resetApiKey() {
-    localStorage.removeItem("gemini_api_key");
-    alert("API Key 已清除，請重新整理頁面。");
-}
+window.initGameFlow = initGameFlow; // IMPORTANT FIX (this often breaks your click)
 
 // ==========================================================================
-// Dialogue UI
+// UI UPDATE
 // ==========================================================================
-function updateDialogueUI(rawText) {
-    let cleanText = rawText;
+function updateDialogueUI(text) {
+    let cleanText = text;
 
     const speakerMatch = cleanText.match(/^([^：:\n]+)[：:]/);
 
     if (speakerMatch) {
-        speakerTag.innerText = speakerMatch[1].trim();
-        cleanText = cleanText.substring(speakerMatch[0].length);
+        speakerTag.innerText = speakerMatch[1];
+        cleanText = cleanText.replace(speakerMatch[0], "");
     } else {
         speakerTag.innerText = "旁白";
     }
 
-    cleanText = cleanText.replace(
-        /^\s*(?:[1-3]|[ABCabc]|[一二三]|選項)[\.、\s\-:\)].*$/gm,
-        ""
-    );
+    // remove option lines from main text
+    cleanText = cleanText.replace(/^\s*[1-3]\..*$/gm, "");
 
     dialogueText.innerText = cleanText.trim();
 }
 
 // ==========================================================================
-// Choice Parsing
+// CHOICE PARSER
 // ==========================================================================
-function parsingChoiceOptions(fullText) {
+function parsingChoiceOptions(text) {
     choiceContainer.innerHTML = "";
-    const lines = fullText.split("\n");
 
+    const lines = text.split("\n");
     let count = 0;
 
     lines.forEach(line => {
-        const trimmed = line.trim();
+        const t = line.trim();
 
-        if (/^(?:[1-3])\./.test(trimmed) && count < 3) {
+        if (/^[1-3]\./.test(t) && count < 3) {
             count++;
 
             const btn = document.createElement("div");
-            btn.classList.add("game-choice-btn");
+            btn.className = "game-choice-btn";
 
-            const text = trimmed.replace(/^(?:[1-3])\.\s*/, "");
-            btn.innerText = text;
+            const optionText = t.replace(/^[1-3]\.\s*/, "");
+            btn.innerText = optionText;
 
             btn.onclick = () => {
                 choiceContainer.innerHTML = "";
-                processGameAction(`玩家選擇：${text}`);
+                processGameAction("玩家選擇：" + optionText);
             };
 
             choiceContainer.appendChild(btn);
@@ -81,61 +73,46 @@ function parsingChoiceOptions(fullText) {
     });
 
     if (count === 0) {
-        const retry = document.createElement("div");
-        retry.classList.add("game-choice-btn");
-        retry.innerText = "繼續";
-        retry.onclick = () => processGameAction("繼續劇情");
-        choiceContainer.appendChild(retry);
+        const btn = document.createElement("div");
+        btn.className = "game-choice-btn";
+        btn.innerText = "繼續";
+        btn.onclick = () => processGameAction("繼續劇情");
+        choiceContainer.appendChild(btn);
     }
 }
 
 // ==========================================================================
-// Gemini API
+// GEMINI CALL
 // ==========================================================================
-async function processGameAction(actionPayloadText) {
-    speakerTag.innerText = "系統";
-    dialogueText.innerText = "AI 思考中...";
+async function processGameAction(input) {
+    speakerTag.innerText = "AI 思考中...";
+    dialogueText.innerText = "正在生成劇情...";
     choiceContainer.innerHTML = "";
 
-    const apiKey = getApiKey();
-
-    if (!apiKey) {
-        dialogueText.innerText = "未提供 API key";
-        createResetButton();
-        return;
-    }
-
-    const systemPrompt = `
-你是一款校園戀愛養成 Galgame 的文本引擎。
-
-規則：
-1. 每回合先描述場景與情緒
-2. 產生三個選項
-3. 最後三行必須是：
-
-1. 選項一
-2. 選項二
-3. 選項三
-`;
-
     try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
             {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     contents: [
                         {
-                            role: "user",
                             parts: [
                                 {
-                                    text:
-                                        systemPrompt +
-                                        "\n\n玩家輸入：" +
-                                        actionPayloadText
+                                    text: `
+你是一個校園戀愛Galgame。
+
+規則：
+- 描述劇情（短但有畫面感）
+- 提供3個選項
+- 最後三行必須是：
+1. xxx
+2. xxx
+3. xxx
+
+玩家輸入：${input}
+                                    `
                                 }
                             ]
                         }
@@ -144,68 +121,34 @@ async function processGameAction(actionPayloadText) {
             }
         );
 
-        const data = await response.json();
-        console.log(data);
+        const data = await res.json();
 
-        if (!response.ok) {
-            throw new Error(
-                data.error?.message || `HTTP Error ${response.status}`
-            );
+        console.log("Gemini response:", data);
+
+        if (!res.ok) {
+            throw new Error(data.error?.message || "API error");
         }
 
-        const responseText =
-            data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        if (!responseText) {
-            throw new Error("Gemini 沒有回傳內容");
-        }
+        if (!text) throw new Error("No response text");
 
-        updateDialogueUI(responseText);
-        parsingChoiceOptions(responseText);
+        updateDialogueUI(text);
+        parsingChoiceOptions(text);
 
-    } catch (error) {
-        console.error(error);
+    } catch (err) {
+        console.error(err);
+
         speakerTag.innerText = "錯誤";
         dialogueText.innerText =
-            "連線失敗。\n可能原因：\n1. API key 錯誤\n2. CORS\n3. Gemini quota 用完";
-        createResetButton();
+            "連線失敗：\n1. API key錯\n2. 網路問題\n3. API未啟用";
+
+        const btn = document.createElement("div");
+        btn.className = "game-choice-btn";
+        btn.innerText = "重試";
+        btn.onclick = initGameFlow;
+
+        choiceContainer.innerHTML = "";
+        choiceContainer.appendChild(btn);
     }
 }
-
-// ==========================================================================
-// Retry Buttons
-// ==========================================================================
-function createResetButton() {
-    choiceContainer.innerHTML = "";
-
-    const retryBtn = document.createElement("div");
-    retryBtn.classList.add("game-choice-btn");
-    retryBtn.innerText = "🔄 重試";
-    retryBtn.onclick = () => initGameFlow();
-
-    const resetBtn = document.createElement("div");
-    resetBtn.classList.add("game-choice-btn");
-    resetBtn.style.marginTop = "10px";
-    resetBtn.innerText = "🔑 更換 API Key";
-    resetBtn.onclick = resetApiKey;
-
-    choiceContainer.appendChild(retryBtn);
-    choiceContainer.appendChild(resetBtn);
-}
-
-// ==========================================================================
-// Start Game
-// ==========================================================================
-function initGameFlow() {
-    choiceContainer.innerHTML = "";
-
-    processGameAction(`
-開學第一天早晨。
-櫻花校園走廊。
-主角與傲嬌青梅竹馬相遇。
-開始故事。
-`);
-}
-
-// Make sure HTML onclick can access it
-window.initGameFlow = initGameFlow;
