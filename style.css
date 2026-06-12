@@ -1,0 +1,165 @@
+/* ==========================================================================
+   🌸 Galgame 櫻花粉系戀愛視覺小說主題（重構版）
+   ========================================================================== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "Microsoft JhengHei", "Heiti TC", "Apple LiGothic", sans-serif;
+}
+
+body {
+    background-color: #1a0b16; /* 深莓果紫底色 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: #ffffff;
+    overflow: hidden;
+}
+
+/* 遊戲主視窗外框 */
+.game-container {
+    width: 100%;
+    max-width: 1024px;
+    height: 100vh;
+    max-height: 576px; 
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(255, 121, 198, 0.35); /* 粉色霓虹光圈 */
+    border: 3px solid #ff79c6; /* 櫻花粉核心外框 */
+    background: #281423;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 遊戲畫面場景層 */
+.game-viewport {
+    flex: 1;
+    position: relative;
+    background-image: linear-gradient(rgba(255, 184, 108, 0.15), rgba(40, 20, 35, 0.55)), 
+                      url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=1000');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; 
+    padding: 25px;
+}
+
+/* 畫面中央的選項按鈕容器 */
+.choice-container {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 85%;
+    max-width: 550px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 10;
+}
+
+/* 經典 Galgame 圓角膠囊動態選項按鈕 */
+.game-choice-btn {
+    background: rgba(40, 16, 33, 0.92); /* 半透明深梅紅 */
+    color: #fff0f6;
+    border: 2px solid #ff79c6; /* 亮麗粉色框 */
+    padding: 16px 28px;
+    border-radius: 30px; /* 萌系膠囊圓角 */
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 彈性放大動畫 */
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.5px;
+}
+
+/* 懸停時的雙色炫彩漸層 */
+.game-choice-btn:hover {
+    background: linear-gradient(135deg, #ff79c6, #ffb86c); /* 粉桔雙色漸層 */
+    color: #1a0b16; /* 深色字體 */
+    border-color: #ffffff;
+    transform: translateY(-4px) scale(1.03); /* 微幅向上彈跳 */
+    box-shadow: 0 0 25px rgba(255, 121, 198, 0.8);
+}
+
+/* 底部對話框總框架 */
+.dialogue-box-wrap {
+    width: 100%;
+    position: relative;
+    z-index: 5;
+}
+
+/* 浮動式角色名字標籤 */
+.speaker-tag {
+    position: absolute;
+    top: -22px;
+    left: 25px;
+    background: linear-gradient(135deg, #ff79c6, #ff5555); /* 草莓珊瑚漸層 */
+    color: white;
+    padding: 6px 28px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    box-shadow: 2px 4px 12px rgba(255, 121, 198, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* 毛玻璃半透明高級感對話視窗 */
+.dialogue-window {
+    background: rgba(26, 11, 22, 0.88); 
+    backdrop-filter: blur(12px); 
+    -webkit-backdrop-filter: blur(12px);
+    border: 2px solid rgba(255, 121, 198, 0.35); /* 內襯粉色精細線條 */
+    border-radius: 16px;
+    padding: 30px 32px 42px 32px; 
+    height: 160px;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.65);
+    overflow-y: auto;
+}
+
+/* 對話文字樣式 */
+#dialogueText {
+    font-size: 16px;
+    line-height: 1.8;
+    color: #fff0f6;
+    letter-spacing: 1px;
+    white-space: pre-line; 
+}
+
+/* 右下角系統快捷控制小字 */
+.game-controls {
+    position: absolute;
+    bottom: 12px;
+    right: 32px;
+    display: flex;
+    gap: 16px;
+}
+
+.control-btn {
+    font-size: 11px;
+    color: #ffb86c; 
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    transition: color 0.15s ease;
+}
+
+.control-btn:hover {
+    color: #ff79c6; 
+}
+
+/* 滾動條自訂樣式 */
+.dialogue-window::-webkit-scrollbar {
+    width: 6px;
+}
+.dialogue-window::-webkit-scrollbar-thumb {
+    background: rgba(255, 121, 198, 0.4);
+    border-radius: 3px;
+}
