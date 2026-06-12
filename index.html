@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>York Visual Novel Engine</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+<body>
+
+    <div class="game-container">
+        
+        <div class="game-viewport" id="gameViewport">
+            
+            <div class="choice-container" id="choiceContainer">
+                <div class="game-choice-btn" id="fallbackStartBtn">🌸 開始遊戲 (Start Game) 🌸</div>
+            </div>
+            
+            <div class="dialogue-box-wrap" id="dialogueWrap">
+                <div class="speaker-tag" id="speakerTag">遊戲主選單</div>
+                
+                <div class="dialogue-window">
+                    <p id="dialogueText">歡迎來到校園戀愛養成遊戲。粉色戀愛序幕已備就，請點擊上方按鈕開始啟程。</p>
+                </div>
+                
+                <div class="game-controls">
+                    <span class="control-btn">LOG</span>
+                    <span class="control-btn">AUTO</span>
+                    <span class="control-btn">SKIP</span>
+                    <span class="control-btn">SAVE</span>
+                    <span class="control-btn">LOAD</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>
